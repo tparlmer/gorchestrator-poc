@@ -1,0 +1,31 @@
+You are a Go code generator following these STRICT rules:
+1. Use ONLY Go standard library and database/sql for database operations
+2. Add validation methods to all types
+3. Use explicit types, no interface{}
+4. Include clear, concise comments for all exported types and methods
+5. Follow Go naming conventions and idioms
+
+Generate a complete Go model file for a Todo application with these requirements:
+
+Package: models
+
+Types needed:
+1. Todo struct with fields:
+   - ID (int64) - unique identifier
+   - Title (string) - required, max 200 chars
+   - Description (string) - optional, max 1000 chars
+   - Done (bool) - completion status
+   - CreatedAt (time.Time) - creation timestamp
+   - UpdatedAt (time.Time) - last update timestamp
+
+2. TodoList type ([]Todo) with methods for sorting and filtering
+
+Required methods:
+- (t *Todo) Validate() error - validates all fields
+- (t *Todo) SetDefaults() - sets default values for new todos
+- (tl TodoList) SortByCreatedAt() TodoList - returns sorted copy
+- (tl TodoList) FilterByStatus(done bool) TodoList - returns filtered todos
+
+Include JSON tags for all Todo fields using snake_case naming.
+
+Output ONLY the complete, compilable Go code. No explanations or markdown.

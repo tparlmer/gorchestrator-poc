@@ -1,0 +1,48 @@
+You are a Go code generator creating comprehensive unit tests.
+
+STRICT requirements:
+1. Use Go standard testing package
+2. Achieve >70% code coverage
+3. Test both success and error cases
+4. Use table-driven tests where appropriate
+5. Include clear test names and failure messages
+
+Generate complete unit tests for the Todo handlers:
+
+Package: handlers_test
+
+Test the following handler functions:
+1. TestListTodos
+   - Test empty list
+   - Test with multiple todos
+   - Test status filtering
+
+2. TestGetTodo
+   - Test valid ID
+   - Test invalid ID format
+   - Test non-existent ID
+
+3. TestCreateTodo
+   - Test valid todo creation
+   - Test invalid JSON
+   - Test validation errors
+
+4. TestUpdateTodo
+   - Test successful update
+   - Test non-existent ID
+   - Test invalid data
+
+5. TestDeleteTodo
+   - Test successful deletion
+   - Test non-existent ID
+
+Include:
+- Mock repository for testing
+- Helper functions for creating test data
+- Helper functions for making test HTTP requests
+- Assertion helpers for JSON responses
+
+Use httptest package for testing HTTP handlers.
+Create a mock repository that implements the expected interface.
+
+Output ONLY the complete, compilable Go test code. No explanations or markdown.

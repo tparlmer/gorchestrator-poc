@@ -1,0 +1,56 @@
+You are a Go code generator creating a repository layer for SQLite database operations.
+
+STRICT requirements:
+1. Use database/sql with SQLite driver (github.com/mattn/go-sqlite3)
+2. Implement proper transaction handling
+3. Use prepared statements for all queries
+4. Handle NULL values correctly
+5. Include comprehensive error handling
+
+Generate a complete repository file for Todo data persistence:
+
+Package: repository
+
+Import the models package for Todo type (assume ../models relative path).
+
+Required type:
+TodoRepository struct with *sql.DB field
+
+Required methods:
+1. NewTodoRepository(db *sql.DB) *TodoRepository - constructor
+
+2. CreateTable() error
+   - Create todos table if not exists
+   - Include proper indexes
+
+3. Create(todo *models.Todo) error
+   - Insert new todo
+   - Set ID and timestamps
+   - Return updated todo with generated ID
+
+4. GetAll() ([]models.Todo, error)
+   - Fetch all todos ordered by created_at DESC
+
+5. GetByID(id int64) (*models.Todo, error)
+   - Fetch single todo by ID
+   - Return nil, nil if not found
+
+6. Update(todo *models.Todo) error
+   - Update existing todo
+   - Update the UpdatedAt timestamp
+   - Return error if ID doesn't exist
+
+7. Delete(id int64) error
+   - Delete todo by ID
+   - Return error if not found
+
+8. GetByStatus(done bool) ([]models.Todo, error)
+   - Filter todos by completion status
+
+Include:
+- SQL schema as constants
+- Proper scanning of nullable fields
+- Transaction support where appropriate
+- Connection pool configuration recommendations in comments
+
+Output ONLY the complete, compilable Go code. No explanations or markdown.
