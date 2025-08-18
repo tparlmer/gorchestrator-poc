@@ -75,3 +75,6 @@ desktop.ini
 # Local development
 .local/
 .cache/
+
+# Iteration outputs
+iterations/
