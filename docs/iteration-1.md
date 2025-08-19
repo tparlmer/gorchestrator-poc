@@ -113,6 +113,91 @@ FAIL    ./.. [setup failed]
 2. **Instruction Following**: LLMs interpret "generate code" as "show code in readable format"
 3. **Pattern Recognition**: Even with explicit instructions, the markdown pattern is deeply ingrained
 
+## Model Selection Considerations
+
+### Impact of Model Size on Markdown Wrapping
+
+#### Why Larger Models Might Still Have the Issue
+1. **Universal Training Bias**
+   - All LLaMA/CodeLlama models (7B, 13B, 34B) trained on similar datasets
+   - Code in training data is overwhelmingly in markdown format
+   - Larger models may actually be BETTER at following this pattern
+
+2. **Instruction Following Paradox**
+   - Larger models have stronger pattern recognition
+   - More parameters = more commitment to training patterns
+   - May reinforce markdown output rather than prevent it
+
+#### Potential Benefits of Larger Models
+- **Better instruction comprehension** - May understand "raw code only" more literally
+- **Fewer syntax errors** - Better understanding of language semantics
+- **Complete implementations** - Less likely to have missing imports/functions
+- **Response to correction** - More responsive to refined prompts
+
+**Prediction**: 70% chance larger models still wrap in markdown due to training bias
+
+### Code-Specific Model Alternatives
+
+#### Models Designed for Code Generation
+
+| Model | Size | Key Advantage | Ollama Available |
+|-------|------|---------------|------------------|
+| **DeepSeek Coder** | 1.3B-33B | Trained on raw code files, minimal markdown | ✅ Yes |
+| **StarCoder2** | 3B-15B | Fill-in-the-middle training | ❌ No |
+| **WizardCoder** | Various | Better instruction following | ❌ No |
+| **Phind-CodeLlama** | 34B | Pure code focus, less explanatory | ❌ No |
+| **Mistral** | 7B | Good code mode | ✅ Yes |
+
+#### Why Code-Specific Models Perform Better
+
+**Training Data Differences:**
+- **General Models**: Documentation, tutorials, Q&A sites (code in markdown)
+- **Code Models**: Raw repository files, commit diffs (code as files)
+
+**Output Behavior:**
+```bash
+# General Model (CodeLlama) Output:
+```python
+def factorial(n):
+    return 1 if n <= 1 else n * factorial(n-1)
+```
+Here's how this function works...
+
+# Code Model (DeepSeek) Output:
+def factorial(n):
+    return 1 if n <= 1 else n * factorial(n-1)
+```
+
+### Recommended Testing Strategy
+
+1. **Try DeepSeek Coder First**
+   ```bash
+   ollama pull deepseek-coder:6.7b
+   ./overnight-llm -model deepseek-coder:6.7b -output ./my-api
+   ```
+
+2. **Compare Different Sizes**
+   ```bash
+   # Small but fast
+   ./overnight-llm -model deepseek-coder:1.3b -output ./my-api-small
+   
+   # Larger for quality
+   ./overnight-llm -model codellama:13b -output ./my-api-large
+   ```
+
+3. **Test Code vs Instruct Variants**
+   ```bash
+   # Code completion variant (less markdown)
+   ollama pull codellama:7b-code
+   
+   # Instruction variant (more markdown)
+   ollama pull codellama:7b-instruct
+   ```
+
+### Key Insight
+
+The markdown wrapping issue is **model-agnostic but training-dependent**. Models trained primarily on raw code repositories (like DeepSeek Coder) are significantly less likely to wrap output in markdown. The solution isn't just a bigger model, but a model trained on the right type of data.
+
 ## Proposed Solutions
 
 ### Immediate Fixes (Priority 1)
