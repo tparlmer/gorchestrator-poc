@@ -254,6 +254,34 @@ func (s *Storage) GetGeneratedFiles(taskID string) ([]FileGenerated, error) {
 	return files, nil
 }
 
+// CleanAllTasks removes all tasks and generated files from the database
+// This is useful for cleaning up before a new run
+func (s *Storage) CleanAllTasks() error {
+	// Start a transaction for atomic cleanup
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Delete all generated files first (foreign key constraint)
+	if _, err := tx.Exec("DELETE FROM files_generated"); err != nil {
+		return fmt.Errorf("failed to delete generated files: %w", err)
+	}
+
+	// Delete all tasks
+	if _, err := tx.Exec("DELETE FROM tasks"); err != nil {
+		return fmt.Errorf("failed to delete tasks: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
 // Close closes the database connection
 func (s *Storage) Close() error {
 	if s.db != nil {

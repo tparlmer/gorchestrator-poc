@@ -110,12 +110,16 @@ func (o *Orchestrator) GenerateTodoAPI(ctx context.Context, projectName string) 
 		return fmt.Errorf("failed to create work directory: %w", err)
 	}
 
-	// Define the fixed pipeline of tasks
+	// Generate unique run ID to avoid database conflicts
+	runID := fmt.Sprintf("run_%d", time.Now().Unix())
+	fmt.Printf("Run ID: %s\n\n", runID)
+
+	// Define the fixed pipeline of tasks with unique IDs per run
 	tasks := []Task{
-		{ID: "task-001", Type: TaskGenerateModels, Input: "Todo with CRUD", Status: StatusPending},
-		{ID: "task-002", Type: TaskGenerateHandlers, Input: "REST endpoints", Status: StatusPending},
-		{ID: "task-003", Type: TaskGenerateRepository, Input: "SQLite storage", Status: StatusPending},
-		{ID: "task-004", Type: TaskGenerateTests, Input: "Unit tests", Status: StatusPending},
+		{ID: fmt.Sprintf("%s_task_001", runID), Type: TaskGenerateModels, Input: "Todo with CRUD", Status: StatusPending},
+		{ID: fmt.Sprintf("%s_task_002", runID), Type: TaskGenerateHandlers, Input: "REST endpoints", Status: StatusPending},
+		{ID: fmt.Sprintf("%s_task_003", runID), Type: TaskGenerateRepository, Input: "SQLite storage", Status: StatusPending},
+		{ID: fmt.Sprintf("%s_task_004", runID), Type: TaskGenerateTests, Input: "Unit tests", Status: StatusPending},
 	}
 
 	// Store tasks in database
@@ -140,9 +144,15 @@ func (o *Orchestrator) GenerateTodoAPI(ctx context.Context, projectName string) 
 				o.logError(task.ID, err)
 				return fmt.Errorf("task %s (%s) failed: %w", task.ID, task.Type, err)
 			}
-			fmt.Printf("✓ Completed: %s\n", task.Type)
+			fmt.Printf("[DONE] Completed: %s\n", task.Type)
 		}
 	}
+
+	// Generate server main.go entry point
+	if err := o.generateServerMain(); err != nil {
+		return fmt.Errorf("failed to generate server main: %w", err)
+	}
+	fmt.Printf("[DONE] Completed: server main.go\n")
 
 	// Generate go.mod for the output project
 	if err := o.generateGoMod(); err != nil {
@@ -156,7 +166,7 @@ func (o *Orchestrator) GenerateTodoAPI(ctx context.Context, projectName string) 
 
 	// Run validation on generated code
 	if err := o.validateGeneratedCode(ctx); err != nil {
-		fmt.Printf("⚠️  Validation warnings: %v\n", err)
+		fmt.Printf("WARNING: Validation issues: %v\n", err)
 		// Don't fail on validation errors for PoC
 	}
 
@@ -165,8 +175,49 @@ func (o *Orchestrator) GenerateTodoAPI(ctx context.Context, projectName string) 
 		fmt.Printf("Failed to write status file: %v\n", err)
 	}
 
-	fmt.Printf("\n✅ Successfully generated API in %v\n", time.Since(o.startTime))
+	fmt.Printf("\n[SUCCESS] Generated API in %v\n", time.Since(o.startTime))
 	return nil
+}
+
+// cleanLLMOutput removes markdown code blocks and extra text from LLM output
+// This is critical because LLMs often wrap code in ```go blocks despite instructions
+func cleanLLMOutput(raw string) string {
+	// Trim whitespace
+	raw = strings.TrimSpace(raw)
+	
+	// Check if the output starts with markdown code block
+	if strings.HasPrefix(raw, "```") {
+		lines := strings.Split(raw, "\n")
+		var cleaned []string
+		inCode := false
+		
+		for _, line := range lines {
+			// Check for code block markers
+			if strings.HasPrefix(strings.TrimSpace(line), "```") {
+				inCode = !inCode
+				continue // Skip the markdown markers
+			}
+			
+			// Only include lines that are inside code blocks
+			if inCode {
+				cleaned = append(cleaned, line)
+			}
+		}
+		
+		// Join the cleaned lines
+		result := strings.Join(cleaned, "\n")
+		
+		// Trim any trailing whitespace
+		return strings.TrimSpace(result)
+	}
+	
+	// If no markdown blocks found, check for inline backticks at start/end
+	if strings.HasPrefix(raw, "`") && strings.HasSuffix(raw, "`") {
+		raw = strings.TrimPrefix(raw, "`")
+		raw = strings.TrimSuffix(raw, "`")
+	}
+	
+	return raw
 }
 
 // executeTask runs a single code generation task
@@ -190,13 +241,22 @@ func (o *Orchestrator) executeTask(ctx context.Context, task Task) error {
 		return fmt.Errorf("LLM generation failed: %w", err)
 	}
 
+	// Clean the LLM output to remove markdown formatting
+	cleaned := cleanLLMOutput(response)
+	
 	// Check output size limit
-	if len(response) > o.limits.MaxOutputSize {
-		return fmt.Errorf("output exceeds size limit: %d > %d", len(response), o.limits.MaxOutputSize)
+	if len(cleaned) > o.limits.MaxOutputSize {
+		return fmt.Errorf("output exceeds size limit: %d > %d", len(cleaned), o.limits.MaxOutputSize)
 	}
 
-	// Save the generated output
-	if err := o.saveOutput(task, response); err != nil {
+	// Show preview of cleaned output
+	preview := strings.Split(cleaned, "\n")
+	if len(preview) > 3 {
+		fmt.Printf("    Preview: %s\n", preview[0])
+	}
+
+	// Save the cleaned output
+	if err := o.saveOutput(task, cleaned); err != nil {
 		return fmt.Errorf("failed to save output: %w", err)
 	}
 
@@ -205,7 +265,7 @@ func (o *Orchestrator) executeTask(ctx context.Context, task Task) error {
 		return fmt.Errorf("failed to update task status: %w", err)
 	}
 
-	if err := o.storage.UpdateTaskOutput(task.ID, response); err != nil {
+	if err := o.storage.UpdateTaskOutput(task.ID, cleaned); err != nil {
 		return fmt.Errorf("failed to save task output: %w", err)
 	}
 
@@ -444,10 +504,10 @@ func (o *Orchestrator) PrintSummary() {
 	for _, task := range tasks {
 		status := "⏳"
 		if task.Status == string(StatusComplete) {
-			status = "✅"
+			status = "[DONE]"
 			completed++
 		} else if task.Status == string(StatusFailed) {
-			status = "❌"
+			status = "[FAIL]"
 			failed++
 		}
 		fmt.Printf("%s %s - %s\n", status, task.Type, task.Status)
@@ -460,7 +520,7 @@ func (o *Orchestrator) PrintSummary() {
 	fmt.Printf("Output Dir:  %s\n", o.workDir)
 
 	if completed == len(tasks) {
-		fmt.Println("\n🎉 All tasks completed successfully!")
+		fmt.Println("\nAll tasks completed successfully!")
 		fmt.Printf("\nNext steps:\n")
 		fmt.Printf("  cd %s\n", o.workDir)
 		fmt.Printf("  go mod download\n")

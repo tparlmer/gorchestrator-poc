@@ -26,6 +26,7 @@ func main() {
 		model        = flag.String("model", "codellama:7b", "LLM model to use for generation")
 		dbPath       = flag.String("db", "./poc.db", "SQLite database path")
 		skipValidate = flag.Bool("skip-validation", false, "Skip code validation after generation")
+		cleanDB      = flag.Bool("clean", false, "Clean database before running (removes old tasks)")
 		version      = flag.Bool("version", false, "Show version information")
 		help         = flag.Bool("help", false, "Show help message")
 	)
@@ -48,61 +49,76 @@ func main() {
 	printBanner()
 
 	// Initialize database with embedded schema
-	fmt.Println("📦 Initializing database...")
+	fmt.Println("Initializing database...")
 	db, err := storage.InitDB(*dbPath)
 	if err != nil {
-		log.Fatal("❌ Failed to initialize database:", err)
+		log.Fatal("ERROR: Failed to initialize database:", err)
 	}
 	defer db.Close()
 
+	// Clean database if requested
+	if *cleanDB {
+		fmt.Println("Cleaning old tasks from database...")
+		store := storage.NewStorage(db)
+		if err := store.CleanAllTasks(); err != nil {
+			log.Fatal("ERROR: Failed to clean database:", err)
+		}
+		fmt.Println("Database cleaned successfully")
+	}
+
 	// Create Ollama client for LLM interactions
-	fmt.Printf("🤖 Connecting to Ollama at %s...\n", *ollamaHost)
+	fmt.Printf("Connecting to Ollama at %s...\n", *ollamaHost)
 	ollamaClient := llm.NewOllamaClient(*ollamaHost, *model)
 
 	// Perform health check to ensure Ollama is running and model is available
-	fmt.Printf("🔍 Checking model availability (%s)...\n", *model)
+	fmt.Printf("Checking model availability (%s)...\n", *model)
 	ctx := context.Background()
 	if err := ollamaClient.HealthCheck(ctx); err != nil {
-		fmt.Println("❌ Ollama health check failed:", err)
+		fmt.Println("ERROR: Ollama health check failed:", err)
 		fmt.Println("\n📋 Prerequisites:")
 		fmt.Println("  1. Start Ollama service:")
 		fmt.Printf("     ollama serve\n")
 		fmt.Println("  2. Pull the required model:")
 		fmt.Printf("     ollama pull %s\n", *model)
-		fmt.Println("\n💡 Tip: For faster generation, try smaller models like:")
+		fmt.Println("\nTip: For faster generation, try smaller models like:")
 		fmt.Println("     ollama pull codellama:7b")
 		fmt.Println("     ollama pull deepseek-coder:1.3b")
 		os.Exit(1)
 	}
-	fmt.Println("✅ Ollama is ready!")
+	fmt.Println("Ollama is ready!")
 
 	// Create orchestrator to manage the generation pipeline
 	orch := orchestrator.New(ollamaClient, db, *output)
 
 	// Start the generation process
 	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Printf("🚀 STARTING CODE GENERATION\n")
+	fmt.Printf("STARTING CODE GENERATION\n")
 	fmt.Println(strings.Repeat("=", 60))
-	fmt.Printf("📝 Task:        %s\n", *prompt)
-	fmt.Printf("📁 Output:      %s\n", *output)
-	fmt.Printf("🤖 Model:       %s\n", *model)
-	fmt.Printf("💾 Database:    %s\n", *dbPath)
+	fmt.Printf("Task:        %s\n", *prompt)
+	fmt.Printf("Output:      %s\n", *output)
+	fmt.Printf("Model:       %s\n", *model)
+	fmt.Printf("Database:    %s\n", *dbPath)
 	fmt.Println(strings.Repeat("=", 60) + "\n")
 
 	// Run the main generation pipeline
 	if err := orch.GenerateTodoAPI(ctx, *prompt); err != nil {
-		fmt.Printf("\n❌ Generation failed: %v\n", err)
+		fmt.Printf("\nERROR: Generation failed: %v\n", err)
 
-		// Still show summary even on failure
-		orch.PrintSummary()
+		// Don't show success summary on failure - show what went wrong
+		fmt.Println("\n" + strings.Repeat("=", 60))
+		fmt.Println("FAILURE SUMMARY")
+		fmt.Println(strings.Repeat("=", 60))
+		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("Output Dir: %s\n", *output)
+		fmt.Printf("Database: %s\n", *dbPath)
 
 		// Provide troubleshooting tips
-		fmt.Println("\n💡 Troubleshooting tips:")
+		fmt.Println("\nTroubleshooting tips:")
+		fmt.Println("  - If 'UNIQUE constraint failed': Run with --clean flag or rm poc.db")
 		fmt.Println("  - Check Ollama is running: curl http://localhost:11434/api/tags")
 		fmt.Println("  - Verify model is downloaded: ollama list")
 		fmt.Println("  - Try a smaller model if running out of memory")
-		fmt.Println("  - Check the generated files in:", *output)
-		fmt.Println("  - Review poc.db for task details")
+		fmt.Println("  - Review database: sqlite3 poc.db 'SELECT * FROM tasks ORDER BY created_at DESC LIMIT 5;'")
 
 		os.Exit(1)
 	}
@@ -110,14 +126,14 @@ func main() {
 	// Run validation if not skipped
 	if !*skipValidate {
 		fmt.Println("\n" + strings.Repeat("=", 60))
-		fmt.Println("🔍 VALIDATING GENERATED CODE")
+		fmt.Println("VALIDATING GENERATED CODE")
 		fmt.Println(strings.Repeat("=", 60))
 
 		val := validator.NewValidator(*output)
 
 		// Check Go installation first
 		if err := val.CheckGoInstallation(); err != nil {
-			fmt.Printf("⚠️  Go not found: %v\n", err)
+			fmt.Printf("WARNING: Go not found: %v\n", err)
 			fmt.Println("   Skipping validation (Go required for validation)")
 		} else {
 			// Run all validation checks
@@ -125,11 +141,11 @@ func main() {
 			validator.PrintResults(results)
 
 			// Optionally format the code
-			fmt.Println("\n📝 Auto-formatting generated code...")
+			fmt.Println("\nAuto-formatting generated code...")
 			if err := val.FormatCode(ctx); err != nil {
-				fmt.Printf("⚠️  Failed to format code: %v\n", err)
+				fmt.Printf("WARNING: Failed to format code: %v\n", err)
 			} else {
-				fmt.Println("✅ Code formatted successfully")
+				fmt.Println("Code formatted successfully")
 			}
 		}
 	}
@@ -207,7 +223,7 @@ func printNextSteps(outputDir string) {
 	fmt.Printf("   - Status: %s/status.json\n", outputDir)
 	fmt.Println()
 
-	fmt.Println("💡 Tips:")
+	fmt.Println("Tips:")
 	fmt.Println("   - Review generated code before deployment")
 	fmt.Println("   - The code may need adjustments based on your requirements")
 	fmt.Println("   - Check status.json for generation details")

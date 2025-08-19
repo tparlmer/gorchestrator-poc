@@ -103,20 +103,20 @@ install:
 .PHONY: check-ollama
 check-ollama:
 	@echo "Checking Ollama status..."
-	@curl -s http://localhost:11434/api/tags > /dev/null && echo "✅ Ollama is running" || echo "❌ Ollama is not running. Start it with: ollama serve"
+	@curl -s http://localhost:11434/api/tags > /dev/null && echo "OK: Ollama is running" || echo "ERROR: Ollama is not running. Start it with: ollama serve"
 
 # Pull required models
 .PHONY: setup-models
 setup-models:
 	@echo "Pulling recommended models..."
 	ollama pull codellama:7b
-	@echo "✅ Models ready"
+	@echo "OK: Models ready"
 
 # Full setup: deps, models, and verification
 .PHONY: setup
 setup: deps setup-models check-ollama
 	@echo ""
-	@echo "✅ Setup complete! You can now run: make run"
+	@echo "OK: Setup complete! You can now run: make run"
 
 # Development mode - rebuild and run on changes (requires entr)
 .PHONY: dev

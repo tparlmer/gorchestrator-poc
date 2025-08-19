@@ -296,9 +296,9 @@ func PrintResults(results []ValidationResult) {
 
 	allPassed := true
 	for _, result := range results {
-		status := "✅ PASS"
+		status := "PASS"
 		if !result.Success {
-			status = "❌ FAIL"
+			status = "FAIL"
 			allPassed = false
 		}
 
@@ -320,8 +320,8 @@ func PrintResults(results []ValidationResult) {
 
 	fmt.Println("\n" + strings.Repeat("=", 50))
 	if allPassed {
-		fmt.Println("✅ All validation checks passed!")
+		fmt.Println("All validation checks passed!")
 	} else {
-		fmt.Println("⚠️  Some validation checks failed. Review the output above.")
+		fmt.Println("WARNING: Some validation checks failed. Review the output above.")
 	}
 }

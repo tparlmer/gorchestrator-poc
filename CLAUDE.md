@@ -201,15 +201,17 @@ make build  # Ensure compilation
 **NEVER use emoji or special Unicode characters in documentation files**. They cause file corruption and make documents unreadable.
 
 #### Forbidden Characters
-- NO emoji (❌, ✅, 🚀, 📝, etc.)
+- NO emoji or special Unicode characters
 - NO special arrows or symbols
 - NO Unicode box drawing characters
 - Use only ASCII characters for maximum compatibility
 
 #### Safe Alternatives
 Instead of emoji, use ASCII alternatives:
-- Instead of ✅ use: [x], DONE, OK, or YES
-- Instead of ❌ use: [ ], FAIL, ERROR, or NO  
-- Instead of 🚀 use: START, LAUNCH, or -->
-- Instead of 📝 use: NOTE:, WRITE:, or DOC:
-- Instead of ⚠️ use: WARNING:, CAUTION:, or (!)
+- Instead of checkmarks use: [x], DONE, OK, or YES
+- Instead of X marks use: [ ], FAIL, ERROR, or NO  
+- Instead of rockets use: START, LAUNCH, or -->
+- Instead of notepads use: NOTE:, WRITE:, or DOC:
+- Instead of warning signs use: WARNING:, CAUTION:, or (!)
+
+- Do not put emojis or non-UTF characters in the codebase. They are causing errors.
